@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - master
+    # Pushing a tag such as `v1.0.0` builds an APK and publishes it as a
+    # GitHub Release named after the tag.
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       publish_release:
@@ -27,7 +31,7 @@ env:
   # Keep in sync with variables.gradle (compileSdk / targetSdk)
   ANDROID_COMPILE_SDK: '36'
   ANDROID_BUILD_TOOLS: '36.0.0'
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' && github.event.inputs.release_tag || format('v1.0.{0}', github.run_number) }}
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' && github.event.inputs.release_tag || format('v1.0.{0}', github.run_number)) }}
 
 jobs:
   build:
@@ -121,7 +125,8 @@ jobs:
         if: >-
           success() &&
           github.event.inputs.publish_release != 'false' &&
-          (github.event_name == 'workflow_dispatch' ||
+          (github.ref_type == 'tag' ||
+           github.event_name == 'workflow_dispatch' ||
            github.ref == 'refs/heads/main' ||
            github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v2
@@ -131,7 +136,7 @@ jobs:
           body: |
             ### 📱 Sudoku Android APK
 
-            Automated Android build from commit `${{ github.sha }}` (branch `${{ github.ref_name }}`).
+            Automated Android build from commit `${{ github.sha }}` (ref `${{ github.ref_name }}`).
 
             Download **`Sudoku-debug.apk`** below to install directly on your Android phone or emulator.
 
