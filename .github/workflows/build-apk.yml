@@ -6,9 +6,28 @@ on:
       - main
       - master
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Create or update a GitHub Release with the built APK'
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release tag (leave empty for v1.0.<run_number>)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with variables.gradle (compileSdk / targetSdk)
+  ANDROID_COMPILE_SDK: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' && github.event.inputs.release_tag || format('v1.0.{0}', github.run_number) }}
 
 jobs:
   build:
@@ -19,19 +38,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Java JDK 17
+      # Capacitor 8 compiles the Android modules with Java 21
+      # (android/app/capacitor.build.gradle -> VERSION_21), so JDK 17 is too old.
+      - name: Set up Java JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Set up Node.js 20
+      # @capacitor/cli 8 requires Node >= 22.
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install Node Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       - name: Build Web Application
         run: npm run build
@@ -39,8 +62,26 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      # Explicit packages: the action's default list still requests the legacy
+      # `tools` package, which Google removed from the SDK repository.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-${{ env.ANDROID_COMPILE_SDK }}
+            build-tools;${{ env.ANDROID_BUILD_TOOLS }}
+
+      - name: Give Gradle More Heap
+        run: |
+          mkdir -p "$HOME/.gradle"
+          printf 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g\n' >> "$HOME/.gradle/gradle.properties"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root: ./android
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
       - name: Make Gradlew Executable
         run: chmod +x ./android/gradlew
@@ -54,6 +95,20 @@ jobs:
         run: |
           mkdir -p output
           cp android/app/build/outputs/apk/debug/app-debug.apk output/Sudoku-debug.apk
+          {
+            echo "### 📱 Sudoku Android APK"
+            echo ""
+            echo "Automated Android build from commit \`${{ github.sha }}\`."
+            echo ""
+            echo "| File | Size | SHA-256 |"
+            echo "| --- | --- | --- |"
+            size=$(du -h output/Sudoku-debug.apk | cut -f1)
+            sum=$(sha256sum output/Sudoku-debug.apk | cut -d' ' -f1)
+            echo "| \`Sudoku-debug.apk\` | $size | \`$sum\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "sha256=$(sha256sum output/Sudoku-debug.apk | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "size=$(du -h output/Sudoku-debug.apk | cut -f1)" >> "$GITHUB_OUTPUT"
+        id: apk_info
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -63,17 +118,35 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release with APK
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: >-
+          success() &&
+          github.event.inputs.publish_release != 'false' &&
+          (github.event_name == 'workflow_dispatch' ||
+           github.ref == 'refs/heads/main' ||
+           github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "Sudoku Android APK v1.0.${{ github.run_number }}"
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "Sudoku Android APK ${{ env.RELEASE_TAG }}"
           body: |
             ### 📱 Sudoku Android APK
-            Automated Android APK build from commit `${{ github.sha }}`.
+
+            Automated Android build from commit `${{ github.sha }}` (branch `${{ github.ref_name }}`).
 
             Download **`Sudoku-debug.apk`** below to install directly on your Android phone or emulator.
+
+            | File | Size | SHA-256 |
+            | --- | --- | --- |
+            | `Sudoku-debug.apk` | ${{ steps.apk_info.outputs.size }} | `${{ steps.apk_info.outputs.sha256 }}` |
+
+            **Install:** transfer the APK to the device, enable *Install unknown apps* for your
+            file manager, then open the file. A debug-signed APK can be installed over earlier
+            builds from this same signing key.
+
+            **Requirements:** Android 7.0+ (API 24) · package `com.markwanjala.sudoku`
           files: output/Sudoku-debug.apk
+          overwrite_files: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
