@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Android Material 3 Squircle Background -->
+  <rect width="512" height="512" rx="112" fill="#1A73E8" />
+
+  <!-- Sudoku Grid Container with M3 rounded card styling -->
+  <g transform="translate(64, 64)">
+    <rect width="384" height="384" rx="44" fill="#FFFFFF" />
+    
+    <!-- Clean 3x3 cells -->
+    <rect x="16" y="16" width="106" height="106" rx="20" fill="#E8F0FE" />
+    <rect x="139" y="16" width="106" height="106" rx="20" fill="#F8F9FA" />
+    <rect x="262" y="16" width="106" height="106" rx="20" fill="#E8F0FE" />
+
+    <rect x="16" y="139" width="106" height="106" rx="20" fill="#F8F9FA" />
+    <rect x="139" y="139" width="106" height="106" rx="20" fill="#1A73E8" />
+    <rect x="262" y="139" width="106" height="106" rx="20" fill="#F8F9FA" />
+
+    <rect x="16" y="262" width="106" height="106" rx="20" fill="#E8F0FE" />
+    <rect x="139" y="262" width="106" height="106" rx="20" fill="#F8F9FA" />
+    <rect x="262" y="262" width="106" height="106" rx="20" fill="#E8F0FE" />
+
+    <!-- Material Typography numbers -->
+    <text x="69" y="88" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="700" fill="#174EA6" text-anchor="middle">5</text>
+    <text x="192" y="88" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="600" fill="#5F6368" text-anchor="middle">3</text>
+    <text x="315" y="88" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="700" fill="#174EA6" text-anchor="middle">8</text>
+
+    <text x="69" y="211" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="600" fill="#5F6368" text-anchor="middle">6</text>
+    <text x="192" y="213" font-family="system-ui, -apple-system, sans-serif" font-size="68" font-weight="800" fill="#FFFFFF" text-anchor="middle">9</text>
+    <text x="315" y="211" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="600" fill="#5F6368" text-anchor="middle">1</text>
+
+    <text x="69" y="334" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="700" fill="#174EA6" text-anchor="middle">2</text>
+    <text x="192" y="334" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="600" fill="#5F6368" text-anchor="middle">4</text>
+    <text x="315" y="334" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="700" fill="#174EA6" text-anchor="middle">7</text>
+  </g>
+</svg>
